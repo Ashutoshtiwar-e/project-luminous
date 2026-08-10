@@ -41,15 +41,43 @@ export const getDb = async (): Promise<Db> => {
   const db = c.db('library');
   
   if (!indexesCreated) {
-    indexesCreated = true;
-    Promise.all([
-      db.collection('books').createIndex({ id: 1 }),
-      db.collection('books').createIndex({ title: "text", author: "text", genre: "text", summary: "text", description: "text" }),
-      db.collection('reviews').createIndex({ bookId: 1 }),
-      db.collection('reviews').createIndex({ userId: 1 }),
-      db.collection('users').createIndex({ email: 1 }, { unique: true, partialFilterExpression: { email: { $type: 'string' } } }),
-      db.collection('users').createIndex({ resetPasswordToken: 1 })
-    ]).catch(err => console.error("Failed to create indexes", err));
+    const desiredBooksTextIndex = { title: "text", author: "text", genre: "text", summary: "text", description: "text" };
+    const reconcileBooksTextIndex = async () => {
+      const books = db.collection('books');
+      const existingIndexes = await books.indexes();
+      const existingTextIndex = existingIndexes.find(index => Object.values(index.key).some(value => value === 'text'));
+
+      // Reconcile an older books text index with the current full-text search definition.
+      if (!existingTextIndex) {
+        return books.createIndex(desiredBooksTextIndex);
+      }
+
+      const existingKey = existingTextIndex.key as Record<string, string>;
+      const desiredKey = desiredBooksTextIndex;
+      const sameTextIndex = Object.keys(desiredKey).length === Object.keys(existingKey).length &&
+        Object.entries(desiredKey).every(([key, value]) => existingKey[key] === value);
+
+      if (sameTextIndex) {
+        return Promise.resolve(existingTextIndex.name);
+      }
+
+      await books.dropIndex(existingTextIndex.name);
+      return books.createIndex(desiredBooksTextIndex);
+    };
+
+    try {
+      await Promise.all([
+        db.collection('books').createIndex({ id: 1 }),
+        reconcileBooksTextIndex(),
+        db.collection('reviews').createIndex({ bookId: 1 }),
+        db.collection('reviews').createIndex({ userId: 1 }),
+        db.collection('users').createIndex({ email: 1 }, { unique: true, partialFilterExpression: { email: { $type: 'string' } } }),
+        db.collection('users').createIndex({ resetPasswordToken: 1 })
+      ]);
+      indexesCreated = true;
+    } catch (err) {
+      console.error("Failed to create indexes", err);
+    }
     
     // Seed some mock books if empty and using in-memory db
     if (!process.env.MONGODB_URI) {

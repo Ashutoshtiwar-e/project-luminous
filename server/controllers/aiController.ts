@@ -5,8 +5,6 @@ import { getDb } from '../config/db';
 const getAi = () => {
   const apiKey = process.env.GEMINI_API_KEY;
   console.log("[AI Service] Initializing Gemini API...");
-  console.log("[AI Service] GEMINI_API_KEY is present:", !!apiKey);
-  console.log("[AI Service] GEMINI_API_KEY starts with:", apiKey ? apiKey.substring(0, 4) + "..." : "undefined");
   
   if (!apiKey) {
     console.error("[AI Service] Error: Gemini API key is completely missing.");

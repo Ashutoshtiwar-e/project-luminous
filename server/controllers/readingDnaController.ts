@@ -101,8 +101,6 @@ const generateAndSaveDna = async (req: any, res: Response, user: any, db: any) =
 
   const apiKey = process.env.GEMINI_API_KEY;
   console.log("[AI Service DNA] Initializing Gemini API...");
-  console.log("[AI Service DNA] GEMINI_API_KEY is present:", !!apiKey);
-  console.log("[AI Service DNA] GEMINI_API_KEY starts with:", apiKey ? apiKey.substring(0, 4) + "..." : "undefined");
   
   if (!apiKey) {
     console.error("[AI Service DNA] Error: Gemini API key is missing.");
